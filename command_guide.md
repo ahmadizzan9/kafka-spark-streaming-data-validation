@@ -12,7 +12,7 @@ docker exec -it kafka-stream_pipeline /opt/kafka/bin/kafka-topics.sh --create --
 
 Verification (TOPIC)
 ```
-docker exec -it kafka-stream_pipeline /opt/kafka/bin/kafka-topics.sh --describe --topic (TOPIC) --bootstrap-server localhost:9092
+docker exec -it kafka-stream_pipeline /opt/kafka/bin/kafka-topics.sh --describe --topic transactions --bootstrap-server localhost:9092
 ```
 
 check list (TOPIC)
@@ -29,14 +29,10 @@ execute producer
 ```
 python producer/producer.py
 ```
-execute streaming pipeline
-```
-python streaming/spark_streaming_job.py
-```
 
 read a messege from topic
 ```
-==== dengan deklarasi group ====
+==== menggunakan deklarasi group ====
 docker exec -it kafka-stream_pipeline /opt/kafka/bin/kafka-console-consumer.sh --topic transactions --from-beginning --group transactions_group --bootstrap-server localhost:9092
 docker exec -it kafka-stream_pipeline /opt/kafka/bin/kafka-console-consumer.sh --topic transactions_valid --from-beginning --group transactions_valid_group --bootstrap-server localhost:9092
 docker exec -it kafka-stream_pipeline /opt/kafka/bin/kafka-console-consumer.sh --topic transactions_dlq --from-beginning --group transactions_invalid_group --bootstrap-server localhost:9092
@@ -60,3 +56,10 @@ export PATH=$PATH:/opt/spark/bin
 spark-submit --conf spark.jars.ivy=/tmp/.ivy2 --packages org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.2 /opt/spark-apps/spark_streaming_job.py
 ```
 
+Clear Spark Checkpoints
+```
+ls /tmp/checkpoint
+
+rm -rf /tmp/checkpoint/window
+rm -rf /tmp/checkpoint/validation
+```

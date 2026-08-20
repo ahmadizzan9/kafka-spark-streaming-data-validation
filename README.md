@@ -118,6 +118,27 @@ docker exec -it kafka-Introduction kafka-console-consumer.sh --topic transaction
 docker exec -it kafka-Introduction kafka-console-consumer.sh --topic transactions_dlq --bootstrap-server localhost:9092 --from-beginning
 ```
 
+## Screenshots
+
+All screenshots are in `/screenshots/`.
+
+**Kafka producer** — terminal running `producer.py`, showing successful
+deliveries and broken events being sent (`sisa plan: 0` confirms all 15
+broken events were sent).
+![Producer](screenshots/producer.png)
+
+**Streaming console output** — Spark console showing both the tumbling
+window count per minute and the running total of valid transactions.
+![Streaming console](screenshots/streaming_console.png)
+
+**Topic: transactions_valid** — `kafka-console-consumer` output confirming
+valid rows landed in the valid topic.
+![transactions_valid](screenshots/transactions_valid.png)
+
+**Topic: transactions_dlq** — `kafka-console-consumer` output confirming
+invalid rows landed in the DLQ topic, each with an `error_reason`.
+![transactions_dlq](screenshots/transactions_dlq.png)
+
 ## Known limitations
 
 - **Duplicate detection is intra-batch only.** It uses a `row_number()`
