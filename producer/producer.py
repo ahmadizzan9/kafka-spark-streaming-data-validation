@@ -28,6 +28,7 @@ UNKNOWNS = [
     "book",
 ]
 
+# Lima jenis broken event, masing-masing dijamin minimal 3x terkirim lewat `plan`
 LOAD_TYPE = [
     "amount_negative",
     "amount_too_large",
@@ -43,8 +44,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("producer")
 
+
 def build_valid_transaction():
-    return{
+    # Transaksi bersih, amount dalam rentang valid 1 - 10.000.000
+    return {
         "transaction_id": str(uuid.uuid4()),
         "user_id": random.choice(USER_IDS),
         "amount": random.randint(1, 10000000),
@@ -52,12 +55,14 @@ def build_valid_transaction():
         "source": random.choice(SOURCES),
     }
 
+
 def broken_transaction(transaction, kind):
+    # Rusak satu field transaksi sesuai `kind`, sisanya tetap dari transaksi asli
     if kind == "amount_negative":
         transaction["amount"] = -random.randint(1, 10000000)
 
     if kind == "amount_too_large":
-        transaction["amount"] = random.randint(11000000,100000000)
+        transaction["amount"] = random.randint(11000000, 100000000)
 
     if kind == "bad_timestamp":
         transaction["timestamp"] = ""
@@ -66,11 +71,15 @@ def broken_transaction(transaction, kind):
         transaction["source"] = random.choice(UNKNOWNS)
 
     if kind == "late":
-        transaction["timestamp"] = (datetime.now(timezone.utc) - timedelta(minutes=random.randint(4,10))).strftime("%Y-%m-%dT%H:%M:%SZ")
+        transaction["timestamp"] = (
+            datetime.now(timezone.utc) - timedelta(minutes=random.randint(4, 10))
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return transaction
 
+
 def delivery_report(err, msg):
+    # Callback Kafka setelah pesan terkirim/gagal, sama untuk event valid maupun broken
     if err is not None:
         logger.error("Gagal mengirim pesan ke kafka: %s", err)
         return
@@ -81,13 +90,16 @@ def delivery_report(err, msg):
         msg.offset()
     )
 
+
 def wait_while_serving(producer, seconds):
-    deadline = time.monotonic()+seconds
+    # Tunggu sambil tetap poll producer, supaya callback delivery_report tetap terproses
+    deadline = time.monotonic() + seconds
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             return
         producer.poll(min(remaining, 0.5))
+
 
 def main():
     producer = Producer({"bootstrap.servers": BOOTSTRAP_SERVERS})
@@ -96,8 +108,9 @@ def main():
         TOPIC,
     )
 
+    # Rencana pengiriman broken event, diacak supaya tidak menumpuk di awal
     plan = (LOAD_TYPE * 3)
-    random.shuffle(plan)  
+    random.shuffle(plan)
 
     sent = 0
     try:
@@ -105,13 +118,14 @@ def main():
             INTERVAL_SECONDS = random.uniform(1, 2)
             transaction = build_valid_transaction()
 
+            # 30% peluang per iterasi mengambil satu broken event dari plan, selama masih ada
             if plan and random.random() < 0.3:
                 kind = plan.pop()
                 transaction = broken_transaction(transaction, kind)
                 logger.info("Mengirim BROKEN event (%s) | sisa plan: %d", kind, len(plan))
 
-            payload = json.dumps(transaction,ensure_ascii=False)
-            
+            payload = json.dumps(transaction, ensure_ascii=False)
+
             try:
                 producer.produce(
                     TOPIC,
@@ -134,6 +148,7 @@ def main():
         if remaining:
             logger.error("%s pesan belum terkirim saat keluar", remaining)
         logger.info("Total %s pesan dikirim ke '%s'", sent, TOPIC)
+
 
 if __name__ == "__main__":
     main()
